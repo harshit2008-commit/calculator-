@@ -1,0 +1,1644 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Solar System Weight Calculator</title>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@700;900&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+        // Fallback if the first CDN fails
+        if (typeof THREE === 'undefined') {
+            document.write('<script src="https://unpkg.com/three@0.128.0/build/three.min.js"><\/script>');
+        }
+    </script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Montserrat', 'Arial', sans-serif;
+            background: linear-gradient(135deg, #0c0c0c 0%, #1a1a2e 50%, #16213e 100%);
+            color: white;
+            overflow: hidden;
+        }
+
+        #container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+        }
+
+        #canvas-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+
+        #ui-panel {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 20px;
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            max-width: 350px;
+            z-index: 1000;
+        }
+
+        .input-group {
+            margin-bottom: 15px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #4fc3f7;
+        }
+
+        input[type="number"] {
+            width: 100%;
+            padding: 10px;
+            border: none;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            font-size: 16px;
+        }
+
+        input[type="number"]:focus {
+            outline: none;
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        button {
+            width: 100%;
+            padding: 12px;
+            background: linear-gradient(45deg, #4fc3f7, #29b6f6);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        button:hover {
+            background: linear-gradient(45deg, #29b6f6, #0288d1);
+            transform: translateY(-2px);
+        }
+
+        #weight-display {
+            margin-top: 20px;
+            padding: 15px;
+            background: rgba(76, 175, 80, 0.2);
+            border-radius: 8px;
+            border: 1px solid rgba(76, 175, 80, 0.3);
+            display: none;
+        }
+
+        .planet-weight {
+            margin: 8px 0;
+            padding: 8px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 5px;
+            font-size: 14px;
+        }
+
+        .planet-weight.highlighted {
+            background: rgba(255, 193, 7, 0.3);
+            border: 1px solid #ffc107;
+        }
+
+        #title {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            font-size: 2.5em;
+            font-weight: bold;
+            background: linear-gradient(45deg, #4fc3f7, #29b6f6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            z-index: 1000;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+        }
+
+        #instructions {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 10px;
+            border-radius: 10px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            max-width: 250px;
+            z-index: 1000;
+            font-size: 0.95em;
+        }
+
+        #instructions h3 {
+            color: #4fc3f7;
+            margin-bottom: 10px;
+        }
+
+        #instructions ul {
+            list-style: none;
+            padding-left: 0;
+        }
+
+        #instructions li {
+            margin: 5px 0;
+            padding-left: 20px;
+            position: relative;
+        }
+
+        #instructions li:before {
+            content: "•";
+            color: #4fc3f7;
+            position: absolute;
+            left: 0;
+        }
+
+        /* Modal title gradient and font */
+        #planet-facts-content h2#facts-title, #planet-facts-content h3, #planet-facts-content .modal-title {
+            font-family: 'Montserrat', 'Segoe UI', Arial, sans-serif;
+            font-size: 2em;
+            font-weight: 900;
+            letter-spacing: 2px;
+            background: linear-gradient(90deg, #00eaff 0%, #4fc3f7 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            text-fill-color: transparent;
+            margin-bottom: 10px;
+            margin-top: 0;
+            text-align: left;
+        }
+
+        /* For planet labels in 3D */
+        .planet-label-canvas {
+            font-family: 'Montserrat', Arial, sans-serif !important;
+            font-weight: 900 !important;
+            font-size: 28px !important;
+            color: #fff !important;
+            text-shadow: 2px 2px 8px #000, 0 0 8px #00eaff;
+            letter-spacing: 2px;
+        }
+    </style>
+</head>
+<body>
+    <div id="container">
+        <div id="title">Solar System Weight Calculator</div>
+        
+        <div id="ui-panel">
+            <div class="input-group">
+                <label for="mass-input">Enter your mass (kg):</label>
+                <input type="number" id="mass-input" placeholder="e.g., 70" min="1" max="1000">
+            </div>
+            <button onclick="calculateWeights()">Calculate Weights</button>
+            
+            <div id="weight-display">
+                <h3>Your weight on each planet:</h3>
+                <div id="weight-results"></div>
+            </div>
+        </div>
+
+        <div id="instructions">
+            <h3>How to use:</h3>
+            <ul>
+                <li>Enter your mass in kilograms</li>
+                <li>Click "Calculate Weights" to see your weight on all planets</li>
+                <li>Click on any planet in the 3D model to highlight its weight</li>
+                <li>Click on the ISS satellite to see info</li>
+                <li>Click on Earth's moon to see moon information and your weight on it</li>
+                <li>Double-click a planet or ISS to see facts and pause/resume rotation</li>
+                <li>Drag with mouse to rotate the view around the solar system</li>
+                <li>Use mouse wheel to zoom in and out</li>
+            </ul>
+        </div>
+
+        <div id="canvas-container"></div>
+
+        <!-- Planet Facts Modal -->
+        <div id="planet-facts-modal" style="display:none;">
+            <div id="planet-facts-content">
+                <span id="close-facts">&times;</span>
+                <h2 id="facts-title"></h2>
+                <ul id="facts-list"></ul>
+                <div id="facts-fun"></div>
+            </div>
+        </div>
+    </div>
+
+    <style>
+        #planet-facts-modal {
+            position: fixed;
+            top: 0; left: 0; width: 100vw; height: 100vh;
+            background: rgba(0,0,0,0.7);
+            display: flex;
+            align-items: flex-start;
+            justify-content: flex-start;
+            z-index: 2000;
+        }
+        #planet-facts-content {
+            background: #181c2f;
+            color: #fff;
+            border-radius: 16px;
+            padding: 32px 28px 24px 28px;
+            min-width: 320px;
+            max-width: 90vw;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+            position: relative;
+            margin: 20px;
+        }
+        #close-facts {
+            position: absolute;
+            top: 12px; right: 18px;
+            font-size: 2em;
+            color: #4fc3f7;
+            cursor: pointer;
+        }
+        #facts-title {
+            margin-bottom: 12px;
+            color: #4fc3f7;
+        }
+        #facts-list {
+            list-style: none;
+            padding: 0;
+            margin-bottom: 12px;
+        }
+        #facts-list li {
+            margin-bottom: 6px;
+            font-size: 1.1em;
+        }
+        #facts-fun {
+            margin-top: 10px;
+            font-style: italic;
+            color: #ffc107;
+        }
+    </style>
+
+    <script>
+        // Floating image links for planets, Moon, and ISS
+        const floatingImageLinks = {
+            'Sun': 'file:///C:/Users/chinn/Downloads/1%20%D1%88%D1%82.jpeg',
+            'Mercury': 'file:///C:/Users/chinn/Downloads/download%20(1).jpeg',
+            'Venus': 'file:///C:/Users/chinn/Downloads/1%20%D1%88%D1%82%20(1).jpeg',
+            'Earth': 'file:///C:/Users/chinn/Downloads/download%20(2).jpeg',
+            'Mars': 'file:///C:/Users/chinn/Downloads/download%20(3).jpeg',
+            'Jupiter': 'file:///C:/Users/chinn/Downloads/1%20%D1%88%D1%82%20(2).jpeg',
+            'Saturn': 'file:///C:/Users/chinn/Downloads/1%20%D1%88%D1%82%20(5).jpeg',
+            'Uranus': 'file:///C:/Users/chinn/Downloads/1%20%D1%88%D1%82%20(4).jpeg',
+            'Neptune': 'file:///C:/Users/chinn/Downloads/1%20%D1%88%D1%82%20(3).jpeg',
+            'Moon': 'file:///C:/Users/chinn/Downloads/THE%20MOON.jpeg',
+            'ISS': 'file:///C:/Users/chinn/Downloads/Tdrss%20satellite%20(1).jpeg'
+        };
+
+        // Floating image panel function (must be global)
+        function showFloatingImagePanel(title, imgSrc) {
+            // Remove any existing floating panel
+            const existingPanel = document.getElementById('floating-image-panel');
+            if (existingPanel) existingPanel.remove();
+            // Create floating panel
+            const panel = document.createElement('div');
+            panel.id = 'floating-image-panel';
+            panel.style.position = 'fixed';
+            panel.style.top = '50px';
+            panel.style.right = '40px';
+            panel.style.width = '340px';
+            panel.style.maxWidth = '90vw';
+            panel.style.background = 'rgba(0,0,0,0.95)';
+            panel.style.border = '2px solid #00eaff';
+            panel.style.borderRadius = '16px';
+            panel.style.boxShadow = '0 0 32px #00eaff99, 0 0 2px #fff';
+            panel.style.padding = '18px 18px 12px 18px';
+            panel.style.zIndex = '4000';
+            panel.style.display = 'flex';
+            panel.style.flexDirection = 'column';
+            panel.style.alignItems = 'center';
+            // Close button
+            const closeBtn = document.createElement('button');
+            closeBtn.textContent = '×';
+            closeBtn.style.position = 'absolute';
+            closeBtn.style.top = '8px';
+            closeBtn.style.right = '14px';
+            closeBtn.style.background = 'transparent';
+            closeBtn.style.color = '#00eaff';
+            closeBtn.style.fontSize = '2em';
+            closeBtn.style.border = 'none';
+            closeBtn.style.cursor = 'pointer';
+            closeBtn.style.zIndex = '4100';
+            closeBtn.onmouseover = function() { this.style.color = '#fff'; };
+            closeBtn.onmouseout = function() { this.style.color = '#00eaff'; };
+            closeBtn.onclick = function() { panel.remove(); };
+            panel.appendChild(closeBtn);
+            // Image
+            const img = document.createElement('img');
+            img.src = imgSrc;
+            img.alt = title;
+            img.style.width = '100%';
+            img.style.borderRadius = '10px';
+            img.style.marginTop = '18px';
+            img.style.boxShadow = '0 0 16px #00eaff77';
+            panel.appendChild(img);
+            // Caption
+            const caption = document.createElement('div');
+            caption.textContent = title;
+            caption.style.color = '#00eaff';
+            caption.style.fontWeight = 'bold';
+            caption.style.margin = '10px 0 0 0';
+            caption.style.fontSize = '1.1em';
+            panel.appendChild(caption);
+            document.body.appendChild(panel);
+        }
+
+        // Planet data with relative gravity compared to Earth
+        const planets = {
+            'Sun': { gravity: 27.9, color: 0xfff5a1, size: 5, distance: 0, hasRings: false, moons: [] }, // yellow-white
+            'Mercury': { gravity: 0.38, color: 0x888888, size: 0.8, distance: 8, hasRings: false, moons: [] }, // dark gray
+            'Venus': { gravity: 0.91, color: 0xf5deb3, size: 1.2, distance: 12, hasRings: false, moons: [] }, // pale yellow/cream
+            'Earth': { gravity: 1.0, color: 0x2a5cdd, size: 1.3, distance: 16, hasRings: false, moons: ['Moon'] }, // blue
+            'Mars': { gravity: 0.38, color: 0xb22222, size: 1.0, distance: 20, hasRings: false, moons: ['Phobos', 'Deimos'] }, // reddish brown
+            'Jupiter': { gravity: 2.34, color: 0xf4e2d8, size: 3.5, distance: 28, hasRings: false, moons: ['Io', 'Europa', 'Ganymede', 'Callisto'] }, // pale orange/white bands
+            'Saturn': { gravity: 0.93, color: 0xf5e7b2, size: 3.0, distance: 36, hasRings: true, moons: ['Titan', 'Enceladus', 'Mimas', 'Tethys'] }, // pale gold/yellow
+            'Uranus': { gravity: 0.89, color: 0x7fffd4, size: 2.2, distance: 44, hasRings: true, moons: ['Miranda', 'Ariel', 'Umbriel', 'Titania'] }, // pale cyan
+            'Neptune': { gravity: 1.12, color: 0x2e3a87, size: 2.1, distance: 52, hasRings: false, moons: ['Triton', 'Nereid'] } // deep blue
+        };
+
+        // Planet facts data
+        const planetFacts = {
+            'Sun': {
+                radius: '696,340 km',
+                mass: '1.989 × 10^30 kg',
+                distFromEarth: '149.6 million km',
+                distFromSun: '0 km',
+                rings: 'None',
+                moons: 'None',
+                fun: 'The Sun contains 99.8% of the mass in the Solar System!'
+            },
+            'Mercury': {
+                radius: '2,439.7 km',
+                mass: '3.3011 × 10^23 kg',
+                distFromEarth: '77 million km (closest)',
+                distFromSun: '57.9 million km',
+                rings: 'None',
+                moons: 'None',
+                fun: 'A year on Mercury is just 88 Earth days.'
+            },
+            'Venus': {
+                radius: '6,051.8 km',
+                mass: '4.8675 × 10^24 kg',
+                distFromEarth: '41 million km (closest)',
+                distFromSun: '108.2 million km',
+                rings: 'None',
+                moons: 'None',
+                fun: 'Venus spins in the opposite direction to most planets.'
+            },
+            'Earth': {
+                radius: '6,371 km',
+                mass: '5.972 × 10^24 kg',
+                distFromEarth: '0 km',
+                distFromSun: '149.6 million km',
+                rings: 'None',
+                moons: '1 (The Moon)',
+                fun: 'Earth is the only planet known to support life.'
+            },
+            'Mars': {
+                radius: '3,389.5 km',
+                mass: '6.4171 × 10^23 kg',
+                distFromEarth: '54.6 million km (closest)',
+                distFromSun: '227.9 million km',
+                rings: 'None',
+                moons: '2 (Phobos, Deimos)',
+                fun: 'Mars has the tallest volcano in the solar system: Olympus Mons.'
+            },
+            'Jupiter': {
+                radius: '69,911 km',
+                mass: '1.898 × 10^27 kg',
+                distFromEarth: '588 million km (closest)',
+                distFromSun: '778.5 million km',
+                rings: 'Faint rings',
+                moons: '95+ (including Io, Europa, Ganymede, Callisto)',
+                fun: 'Jupiter has a giant storm called the Great Red Spot.'
+            },
+            'Saturn': {
+                radius: '58,232 km',
+                mass: '5.683 × 10^26 kg',
+                distFromEarth: '1.2 billion km (closest)',
+                distFromSun: '1.43 billion km',
+                rings: '7 major rings',
+                moons: '146+ (including Titan, Enceladus)',
+                fun: 'Saturn could float in water because it is mostly gas!'
+            },
+            'Uranus': {
+                radius: '25,362 km',
+                mass: '8.681 × 10^25 kg',
+                distFromEarth: '2.6 billion km (closest)',
+                distFromSun: '2.87 billion km',
+                rings: '13 rings',
+                moons: '27 (including Miranda, Ariel, Umbriel, Titania)',
+                fun: 'Uranus rotates on its side, making its seasons extreme.'
+            },
+            'Neptune': {
+                radius: '24,622 km',
+                mass: '1.024 × 10^26 kg',
+                distFromEarth: '4.3 billion km (closest)',
+                distFromSun: '4.5 billion km',
+                rings: '5 rings',
+                moons: '16 (including Triton, Nereid)',
+                fun: 'Neptune has the fastest winds in the solar system.'
+            }
+        };
+
+        // ISS Satellite data
+        const issSatellite = {
+            name: 'ISS',
+            color: 0x4fc3f7, // Bright blue
+            size: 0.4, // Bigger than moon (moon is ~0.1)
+            distance: 2.5, // Distance from Earth
+            orbitSpeed: 0.001, // Slower orbit around Earth
+            type: 'Space Station'
+        };
+
+        // ISS facts data
+        const issFacts = {
+            launchDate: 'November 20, 1998',
+            altitude: '408 km',
+            speed: '28,000 km/h',
+            mass: '419,725 kg',
+            crew: '6-7 astronauts',
+            countries: '15 countries',
+            fun: 'The ISS travels at 17,500 mph and orbits Earth every 90 minutes!'
+        };
+
+        // Moon facts data
+        const moonFacts = {
+            radius: '1,737.4 km',
+            mass: '7.342 × 10^22 kg',
+            distFromEarth: '384,400 km',
+            distFromSun: '149.6 million km (same as Earth)',
+            gravity: 0.165, // Moon's gravity compared to Earth
+            fun: 'The Moon is Earth\'s only natural satellite and the 5th largest moon in the solar system!'
+        };
+
+
+        
+        let scene, camera, renderer, planetObjects = {};
+        let userMass = 0;
+        let selectedPlanet = null;
+        let selectedISS = false;
+        let selectedMoon = null;
+        
+        // Mouse controls
+        let mouseX = 0;
+        let mouseY = 0;
+        let isMouseDown = false;
+        let previousMousePosition = { x: 0, y: 0 };
+        
+        // Planet labels
+        let planetLabels = {};
+        
+        // Track paused planets and ISS
+        let pausedPlanets = new Set();
+        let pausedISS = false;
+        
+        // Planet rings and moons
+        let planetRings = {};
+        let planetMoons = {};
+        
+        // ISS satellite
+        let issObject = null;
+        let issLabel = null;
+        
+        // Asteroids
+        let asteroids = [];
+        const ASTEROID_COUNT = 40;
+
+        // Initialize Three.js scene
+        function init() {
+            console.log('Starting 3D initialization...');
+            
+            // Scene setup
+            scene = new THREE.Scene();
+            console.log('Scene created');
+            
+            // Camera setup
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 30, 50);
+            console.log('Camera created');
+            
+            // Renderer setup
+            try {
+                const canvasContainer = document.getElementById('canvas-container');
+                if (!canvasContainer) {
+                    throw new Error('Canvas container not found!');
+                }
+                
+                // Try different renderer options
+                let rendererOptions = [
+                    { antialias: true, alpha: false },
+                    { antialias: false, alpha: false },
+                    { antialias: false, alpha: false, powerPreference: "default" },
+                    { antialias: false, alpha: false, powerPreference: "high-performance" }
+                ];
+                
+                let rendererCreated = false;
+                for (let options of rendererOptions) {
+                    try {
+                        renderer = new THREE.WebGLRenderer(options);
+                        rendererCreated = true;
+                        console.log('Renderer created with options:', options);
+                        break;
+                    } catch (e) {
+                        console.warn('Failed to create renderer with options:', options, e);
+                        continue;
+                    }
+                }
+                
+                if (!rendererCreated) {
+                    throw new Error('Could not create WebGL renderer with any options');
+                }
+                
+                renderer.setSize(window.innerWidth, window.innerHeight);
+                renderer.setClearColor(0x000011);
+                canvasContainer.appendChild(renderer.domElement);
+                console.log('Renderer created and added to DOM');
+            } catch (error) {
+                console.error('Error creating WebGL renderer:', error);
+                throw new Error('Failed to create WebGL renderer: ' + error.message);
+            }
+            
+            // Lighting
+            const ambientLight = new THREE.AmbientLight(0x404040, 0.6);
+            scene.add(ambientLight);
+            
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+            directionalLight.position.set(0, 50, 50);
+            scene.add(directionalLight);
+            
+            // Add sun glow effect
+            const sunGlow = new THREE.PointLight(0xfff5a1, 2, 100);
+            sunGlow.position.set(0, 0, 0);
+            scene.add(sunGlow);
+            
+            // Create planets
+            createPlanets();
+            
+            // Add planet rings
+            createPlanetRings();
+            
+            // Add planet moons
+            createPlanetMoons();
+            
+            // Add planet labels
+            createPlanetLabels();
+            
+            // Create ISS satellite
+            createISS();
+            
+            // Add stars background
+            createStars();
+            
+            // Add asteroids
+            createAsteroids();
+            
+            // Start animation
+            animate();
+            
+            // Add event listeners
+            window.addEventListener('resize', onWindowResize);
+            renderer.domElement.addEventListener('click', onMouseClick);
+            renderer.domElement.addEventListener('mousedown', onMouseDown);
+            renderer.domElement.addEventListener('mouseup', onMouseUp);
+            renderer.domElement.addEventListener('mousemove', onMouseMove);
+            renderer.domElement.addEventListener('wheel', onMouseWheel);
+            renderer.domElement.addEventListener('dblclick', onMouseDoubleClick);
+        }
+
+        function createPlanets() {
+            Object.keys(planets).forEach(planetName => {
+                const planetData = planets[planetName];
+                
+                // Create planet geometry
+                const geometry = new THREE.SphereGeometry(planetData.size, 32, 32);
+                
+                // Special material for the Sun to make it glow
+                let material;
+                if (planetName === 'Sun') {
+                    material = new THREE.MeshPhongMaterial({ 
+                        color: planetData.color,
+                        shininess: 100,
+                        emissive: 0xfff5a1,
+                        emissiveIntensity: 0.3
+                    });
+                } else {
+                    material = new THREE.MeshPhongMaterial({ 
+                        color: planetData.color,
+                        shininess: 30
+                    });
+                }
+                
+                const planet = new THREE.Mesh(geometry, material);
+                planet.position.x = planetData.distance;
+                
+                // Add planet name as user data
+                planet.userData = { name: planetName };
+                
+                // Store planet object
+                planetObjects[planetName] = planet;
+                scene.add(planet);
+                
+                // Add orbit ring (except for Sun)
+                if (planetName !== 'Sun') {
+                    const orbitGeometry = new THREE.RingGeometry(planetData.distance - 0.1, planetData.distance + 0.1, 64);
+                    const orbitMaterial = new THREE.MeshBasicMaterial({ 
+                        color: 0x444444, 
+                        side: THREE.DoubleSide,
+                        transparent: true,
+                        opacity: 0.3
+                    });
+                    const orbit = new THREE.Mesh(orbitGeometry, orbitMaterial);
+                    orbit.rotation.x = Math.PI / 2;
+                    scene.add(orbit);
+                }
+            });
+        }
+
+        function createPlanetRings() {
+            Object.keys(planets).forEach(planetName => {
+                const planetData = planets[planetName];
+                
+                if (planetData.hasRings) {
+                    // Create ring geometry
+                    const ringGeometry = new THREE.RingGeometry(planetData.size + 0.5, planetData.size + 2, 64);
+                    const ringMaterial = new THREE.MeshBasicMaterial({ 
+                        color: 0xd4af37,
+                        side: THREE.DoubleSide,
+                        transparent: true,
+                        opacity: 0.6
+                    });
+                    
+                    const ring = new THREE.Mesh(ringGeometry, ringMaterial);
+                    ring.rotation.x = Math.PI / 2;
+                    ring.position.x = planetData.distance;
+                    
+                    // Store ring object
+                    planetRings[planetName] = ring;
+                    scene.add(ring);
+                }
+            });
+        }
+
+        function createPlanetMoons() {
+            Object.keys(planets).forEach(planetName => {
+                const planetData = planets[planetName];
+                const moons = planetData.moons;
+                
+                if (moons.length > 0) {
+                    planetMoons[planetName] = [];
+                    
+                    moons.forEach((moonName, index) => {
+                        // Create moon geometry
+                        let moonSize = 0.1 + (index * 0.02); // Vary moon sizes
+                        
+                        // Make Earth's moon bigger
+                        if (planetName === 'Earth' && moonName === 'Moon') {
+                            moonSize = 0.25; // Much bigger for Earth's moon
+                        }
+                        
+                        const moonDistance = planetData.size + 1.5 + (index * 0.8); // Distance from planet
+                        const moonGeometry = new THREE.SphereGeometry(moonSize, 16, 16);
+                        const moonMaterial = new THREE.MeshPhongMaterial({ 
+                            color: 0xcccccc,
+                            shininess: 20
+                        });
+                        
+                        const moon = new THREE.Mesh(moonGeometry, moonMaterial);
+                        
+                        // Position moon relative to planet
+                        const angle = (index / moons.length) * Math.PI * 2;
+                        moon.position.x = planetData.distance + Math.cos(angle) * moonDistance;
+                        moon.position.z = Math.sin(angle) * moonDistance;
+                        
+                        // Add moon name as user data
+                        moon.userData = { name: moonName, parentPlanet: planetName };
+                        
+                        // Store moon object
+                        planetMoons[planetName].push(moon);
+                        scene.add(moon);
+                    });
+                }
+            });
+        }
+
+        function createPlanetLabels() {
+            Object.keys(planets).forEach(planetName => {
+                if (planetName !== 'Sun') {
+                    const planetData = planets[planetName];
+                    
+                    // Create canvas for text
+                    const canvas = document.createElement('canvas');
+                    const context = canvas.getContext('2d');
+                    canvas.width = 256;
+                    canvas.height = 64;
+                    
+                    // Set text style (modern font, bold, shadow)
+                    context.font = '900 28px Montserrat, Arial, sans-serif';
+                    context.textAlign = 'center';
+                    context.fillStyle = '#ffffff';
+                    context.shadowColor = '#00eaff';
+                    context.shadowBlur = 8;
+                    context.fillText(planetName, 128, 44);
+                    canvas.className = 'planet-label-canvas';
+                    
+                    // Create texture and material
+                    const texture = new THREE.CanvasTexture(canvas);
+                    const material = new THREE.SpriteMaterial({ 
+                        map: texture,
+                        transparent: true,
+                        opacity: 0.8
+                    });
+                    
+                    // Create sprite
+                    const sprite = new THREE.Sprite(material);
+                    sprite.scale.set(8, 2, 1);
+                    sprite.position.set(planetData.distance, planetData.size + 2, 0);
+                    
+                    // Store label
+                    planetLabels[planetName] = sprite;
+                    scene.add(sprite);
+                }
+            });
+        }
+
+        function createISS() {
+            // Create ISS geometry (sphere for circular shape)
+            const geometry = new THREE.SphereGeometry(issSatellite.size, 32, 32);
+            
+            // Create colorful material with metallic look
+            const material = new THREE.MeshPhongMaterial({ 
+                color: issSatellite.color,
+                shininess: 100,
+                specular: 0x444444
+            });
+            
+            const iss = new THREE.Mesh(geometry, material);
+            iss.position.x = planets['Earth'].distance + issSatellite.distance;
+            
+            // Add ISS name as user data
+            iss.userData = { name: 'ISS', type: 'satellite' };
+            
+            // Store ISS object
+            issObject = iss;
+            scene.add(iss);
+            
+
+            
+            // Create ISS label
+            const canvas = document.createElement('canvas');
+            const context = canvas.getContext('2d');
+            canvas.width = 256;
+            canvas.height = 64;
+            
+            // Set text style
+            context.fillStyle = '#00ffff';
+            context.font = '20px Arial';
+            context.textAlign = 'center';
+            context.fillText('ISS', 128, 40);
+            
+            // Create texture and material
+            const texture = new THREE.CanvasTexture(canvas);
+            const labelMaterial = new THREE.SpriteMaterial({ 
+                map: texture,
+                transparent: true,
+                opacity: 0.8
+            });
+            
+            // Create sprite
+            const sprite = new THREE.Sprite(labelMaterial);
+            sprite.scale.set(6, 1.5, 1);
+            sprite.position.set(planets['Earth'].distance + issSatellite.distance, issSatellite.size + 1, 0);
+            
+            // Store label
+            issLabel = sprite;
+            scene.add(sprite);
+        }
+
+
+
+        function createStars() {
+            const starsGeometry = new THREE.BufferGeometry();
+            const starsMaterial = new THREE.PointsMaterial({ color: 0xffffff, size: 0.5 });
+            
+            const starsVertices = [];
+            for (let i = 0; i < 1000; i++) {
+                const x = (Math.random() - 0.5) * 2000;
+                const y = (Math.random() - 0.5) * 2000;
+                const z = (Math.random() - 0.5) * 2000;
+                starsVertices.push(x, y, z);
+            }
+            
+            starsGeometry.setAttribute('position', new THREE.Float32BufferAttribute(starsVertices, 3));
+            const stars = new THREE.Points(starsGeometry, starsMaterial);
+            scene.add(stars);
+        }
+
+        function createAsteroids() {
+            for (let i = 0; i < ASTEROID_COUNT; i++) {
+                // Random position far from the sun/planets
+                const angle = Math.random() * Math.PI * 2;
+                const distance = 70 + Math.random() * 80;
+                const x = Math.cos(angle) * distance;
+                const z = Math.sin(angle) * distance;
+                const y = (Math.random() - 0.5) * 10;
+                // Random size
+                const size = 0.5 + Math.random() * 1.0; // Between 0.5 and 1.5 units
+                // Random color (now with more variety: brown, gray, red, blue, green, etc.)
+                const hue = 0.05 + Math.random() * 0.5; // 0.05 (brown) to 0.55 (greenish/blue)
+                const sat = 0.2 + Math.random() * 0.6;  // 0.2 to 0.8
+                const light = 0.18 + Math.random() * 0.45; // 0.18 to 0.63
+                const color = new THREE.Color().setHSL(hue, sat, light);
+                // Add some metallic shine to a few asteroids
+                const isMetallic = Math.random() < 0.2;
+                const material = new THREE.MeshPhongMaterial({ color: color, flatShading: true, shininess: isMetallic ? 60 : 10, specular: isMetallic ? 0xaaaaaa : 0x222222 });
+                // Geometry/material
+                const geometry = new THREE.SphereGeometry(size, 8, 8);
+                const asteroid = new THREE.Mesh(geometry, material);
+                asteroid.position.set(x, y, z);
+                // Give each asteroid a random speed and direction
+                asteroid.userData = {
+                    speed: 0.0005 + Math.random() * 0.0015,
+                    orbitRadius: distance,
+                    orbitAngle: angle,
+                    orbitY: y,
+                    orbitTilt: (Math.random() - 0.5) * 0.3
+                };
+                asteroids.push(asteroid);
+                scene.add(asteroid);
+            }
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            // Check if renderer exists
+            if (!renderer || !scene || !camera) {
+                console.error('Renderer, scene, or camera is missing!');
+                return;
+            }
+            
+            // Rotate planets around the sun
+            Object.keys(planetObjects).forEach(planetName => {
+                if (planetName !== 'Sun') {
+                    const planet = planetObjects[planetName];
+                    
+                    // Only animate if planet is not paused
+                    if (!pausedPlanets.has(planetName)) {
+                        const speed = 0.0005 / planets[planetName].distance;
+                        planet.rotation.y += speed;
+                        
+                        // Orbit around sun
+                        const angle = Date.now() * speed;
+                        const distance = planets[planetName].distance;
+                        planet.position.x = Math.cos(angle) * distance;
+                        planet.position.z = Math.sin(angle) * distance;
+                        
+                        // Update ring position
+                        if (planetRings[planetName]) {
+                            planetRings[planetName].position.x = planet.position.x;
+                            planetRings[planetName].position.z = planet.position.z;
+                            planetRings[planetName].rotation.y = planet.rotation.y;
+                        }
+                        
+                        // Update moons positions
+                        if (planetMoons[planetName]) {
+                            planetMoons[planetName].forEach((moon, index) => {
+                                // Slow down the moon speed
+                                const moonSpeed = 0.000001 + (index * 0.001);
+                                const moonAngle = Date.now() * moonSpeed;
+                                const moonDistance = planets[planetName].size + 1.5 + (index * 0.8);
+                                
+                                moon.position.x = planet.position.x + Math.cos(moonAngle) * moonDistance;
+                                moon.position.z = planet.position.z + Math.sin(moonAngle) * moonDistance;
+                            });
+                        }
+                    }
+                    
+                    // Update planet label position (always update labels)
+                    if (planetLabels[planetName]) {
+                        planetLabels[planetName].position.x = planet.position.x;
+                        planetLabels[planetName].position.z = planet.position.z;
+                        planetLabels[planetName].position.y = planets[planetName].size + 2;
+                    }
+                }
+            });
+            
+            // Rotate sun (only if not paused)
+            if (planetObjects['Sun'] && !pausedPlanets.has('Sun')) {
+                planetObjects['Sun'].rotation.y += 0.01;
+            }
+            
+            // Animate ISS
+            if (issObject && !pausedISS) {
+                // Calculate Earth's current position
+                const earthDistance = planets['Earth'].distance;
+                const earthAngle = Date.now() * 0.0005 / planets['Earth'].distance;
+                const earthX = Math.cos(earthAngle) * earthDistance;
+                const earthZ = Math.sin(earthAngle) * earthDistance;
+                
+                // ISS orbits around Earth
+                const issAngle = Date.now() * issSatellite.orbitSpeed;
+                const issDistance = issSatellite.distance;
+                
+                // Position ISS relative to Earth's current position
+                issObject.position.x = earthX + Math.cos(issAngle) * issDistance;
+                issObject.position.z = earthZ + Math.sin(issAngle) * issDistance;
+                
+                // Rotate ISS
+                issObject.rotation.y += 0.005;
+                
+                // Update ISS label position
+                if (issLabel) {
+                    issLabel.position.x = issObject.position.x;
+                    issLabel.position.z = issObject.position.z;
+                    issLabel.position.y = issSatellite.size + 1;
+                }
+            }
+            
+            // Animate asteroids
+            asteroids.forEach(asteroid => {
+                asteroid.userData.orbitAngle += asteroid.userData.speed;
+                if (asteroid.userData.orbitAngle > Math.PI * 2) asteroid.userData.orbitAngle -= Math.PI * 2;
+                asteroid.position.x = Math.cos(asteroid.userData.orbitAngle) * asteroid.userData.orbitRadius;
+                asteroid.position.z = Math.sin(asteroid.userData.orbitAngle) * asteroid.userData.orbitRadius;
+                asteroid.position.y = asteroid.userData.orbitY + Math.sin(asteroid.userData.orbitAngle) * asteroid.userData.orbitTilt * 10;
+                asteroid.rotation.x += 0.01;
+                asteroid.rotation.y += 0.008;
+            });
+            
+            renderer.render(scene, camera);
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        function onMouseClick(event) {
+            // Only handle clicks if not dragging
+            if (!isMouseDown) {
+                const mouse = new THREE.Vector2();
+                mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+                mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+                
+                const raycaster = new THREE.Raycaster();
+                raycaster.setFromCamera(mouse, camera);
+                
+                // Check for planet clicks
+                const planetIntersects = raycaster.intersectObjects(Object.values(planetObjects));
+                
+                if (planetIntersects.length > 0) {
+                    const clickedPlanet = planetIntersects[0].object;
+                    const planetName = clickedPlanet.userData.name;
+                    
+                    if (selectedPlanet) {
+                        // Reset previous selection
+                        const prevMaterial = planetObjects[selectedPlanet].material;
+                        prevMaterial.color.setHex(planets[selectedPlanet].color);
+                    }
+                    
+                    // Reset ISS selection
+                    if (selectedISS && issObject) {
+                        issObject.material.color.setHex(issSatellite.color);
+                    }
+                    
+                    // Reset moon selection
+                    if (selectedMoon) {
+                        selectedMoon.material.color.setHex(0xcccccc);
+                    }
+                    
+                    // Highlight selected planet
+                    selectedPlanet = planetName;
+                    selectedISS = false;
+                    selectedMoon = null;
+                    const material = clickedPlanet.material;
+                    material.color.setHex(0xffff00);
+                    
+                    // Highlight corresponding weight display
+                    highlightWeightDisplay(planetName);
+                }
+                
+                // Check for ISS clicks
+                if (issObject) {
+                    const issIntersects = raycaster.intersectObject(issObject);
+                    
+                    if (issIntersects.length > 0) {
+                        // Reset planet selection
+                        if (selectedPlanet) {
+                            const prevMaterial = planetObjects[selectedPlanet].material;
+                            prevMaterial.color.setHex(planets[selectedPlanet].color);
+                        }
+                        
+                        // Reset ISS selection
+                        if (selectedISS) {
+                            issObject.material.color.setHex(issSatellite.color);
+                        }
+                        
+                        // Reset moon selection
+                        if (selectedMoon) {
+                            selectedMoon.material.color.setHex(0xcccccc);
+                        }
+                        
+                        // Highlight ISS
+                        selectedISS = true;
+                        selectedPlanet = null;
+                        selectedMoon = null;
+                        issObject.material.color.setHex(0xffff00);
+                        
+                        // Show ISS info
+                        showISSInfo();
+                    }
+                }
+                
+                // Check for moon clicks
+                Object.keys(planetMoons).forEach(planetName => {
+                    if (planetMoons[planetName]) {
+                        const moonIntersects = raycaster.intersectObjects(planetMoons[planetName]);
+                        
+                        if (moonIntersects.length > 0) {
+                            const clickedMoon = moonIntersects[0].object;
+                            const moonName = clickedMoon.userData.name;
+                            
+                            // Reset planet selection
+                            if (selectedPlanet) {
+                                const prevMaterial = planetObjects[selectedPlanet].material;
+                                prevMaterial.color.setHex(planets[selectedPlanet].color);
+                            }
+                            
+                            // Reset ISS selection
+                            if (selectedISS && issObject) {
+                                issObject.material.color.setHex(issSatellite.color);
+                            }
+                            
+                            // Reset moon selection
+                            if (selectedMoon) {
+                                selectedMoon.material.color.setHex(0xcccccc);
+                            }
+                            
+                            // Highlight moon
+                            selectedMoon = clickedMoon;
+                            selectedPlanet = null;
+                            selectedISS = false;
+                            clickedMoon.material.color.setHex(0xffff00);
+                            
+                            // Show moon info (only for Earth's moon)
+                            if (planetName === 'Earth' && moonName === 'Moon') {
+                                showMoonInfo();
+                            }
+                        }
+                    }
+                });
+            }
+        }
+
+        function onMouseDown(event) {
+            isMouseDown = true;
+            previousMousePosition = { x: event.clientX, y: event.clientY };
+        }
+
+        function onMouseUp(event) {
+            isMouseDown = false;
+        }
+
+        function onMouseMove(event) {
+            if (isMouseDown) {
+                const deltaMove = {
+                    x: event.clientX - previousMousePosition.x,
+                    y: event.clientY - previousMousePosition.y
+                };
+
+                const rotationSpeed = 0.005;
+                camera.position.x = camera.position.x * Math.cos(deltaMove.x * rotationSpeed) - camera.position.z * Math.sin(deltaMove.x * rotationSpeed);
+                camera.position.z = camera.position.z * Math.cos(deltaMove.x * rotationSpeed) + camera.position.x * Math.sin(deltaMove.x * rotationSpeed);
+
+                // Vertical rotation (with limits)
+                const verticalAngle = Math.atan2(camera.position.y, Math.sqrt(camera.position.x * camera.position.x + camera.position.z * camera.position.z));
+                const newVerticalAngle = verticalAngle - deltaMove.y * rotationSpeed;
+                
+                if (newVerticalAngle > -Math.PI / 2 && newVerticalAngle < Math.PI / 2) {
+                    const distance = Math.sqrt(camera.position.x * camera.position.x + camera.position.z * camera.position.z);
+                    camera.position.y = distance * Math.tan(newVerticalAngle);
+                }
+
+                camera.lookAt(0, 0, 0);
+                previousMousePosition = { x: event.clientX, y: event.clientY };
+            }
+        }
+
+        function onMouseWheel(event) {
+            const zoomSpeed = 0.1;
+            const direction = event.deltaY > 0 ? 1 : -1;
+            
+            const currentDistance = Math.sqrt(camera.position.x * camera.position.x + camera.position.y * camera.position.y + camera.position.z * camera.position.z);
+            const newDistance = Math.max(20, Math.min(100, currentDistance + direction * zoomSpeed * currentDistance));
+            
+            const scale = newDistance / currentDistance;
+            camera.position.x *= scale;
+            camera.position.y *= scale;
+            camera.position.z *= scale;
+            
+            camera.lookAt(0, 0, 0);
+        }
+
+        function calculateWeights() {
+            const massInput = document.getElementById('mass-input');
+            userMass = parseFloat(massInput.value);
+            
+            if (isNaN(userMass) || userMass <= 0) {
+                alert('Please enter a valid mass greater than 0 kg');
+                return;
+            }
+            
+            const weightDisplay = document.getElementById('weight-display');
+            const weightResults = document.getElementById('weight-results');
+            
+            weightResults.innerHTML = '';
+            
+            Object.keys(planets).forEach(planetName => {
+                const weight = userMass * planets[planetName].gravity;
+                const weightDiv = document.createElement('div');
+                weightDiv.className = 'planet-weight';
+                weightDiv.id = `weight-${planetName}`;
+                weightDiv.innerHTML = `<strong>${planetName}:</strong> ${weight.toFixed(2)} kg`;
+                weightResults.appendChild(weightDiv);
+                
+                // Update 2D fallback if it exists
+                const weight2dElement = document.getElementById(`weight-${planetName}-2d`);
+                if (weight2dElement) {
+                    weight2dElement.textContent = `${weight.toFixed(2)} kg`;
+                }
+            });
+            
+            weightDisplay.style.display = 'block';
+        }
+
+        function highlightWeightDisplay(planetName) {
+            // Remove previous highlights
+            document.querySelectorAll('.planet-weight').forEach(el => {
+                el.classList.remove('highlighted');
+            });
+            
+            // Highlight selected planet's weight
+            const weightElement = document.getElementById(`weight-${planetName}`);
+            if (weightElement) {
+                weightElement.classList.add('highlighted');
+            }
+        }
+
+        // Double-click event to show planet facts
+        function onMouseDoubleClick(event) {
+            // Always close floating image panel when opening a modal
+            const floatingPanel = document.getElementById('floating-image-panel');
+            if (floatingPanel) floatingPanel.remove();
+            
+            const mouse = new THREE.Vector2();
+            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+            const raycaster = new THREE.Raycaster();
+            raycaster.setFromCamera(mouse, camera);
+            
+            // Check for planet double-clicks
+            const planetIntersects = raycaster.intersectObjects(Object.values(planetObjects));
+            if (planetIntersects.length > 0) {
+                const clickedPlanet = planetIntersects[0].object;
+                const planetName = clickedPlanet.userData.name;
+                console.log('Double-clicked planet:', planetName);
+                
+                // Toggle planet rotation pause
+                if (pausedPlanets.has(planetName)) {
+                    pausedPlanets.delete(planetName);
+                    console.log(`${planetName} rotation resumed`);
+                } else {
+                    pausedPlanets.add(planetName);
+                    console.log(`${planetName} rotation paused`);
+                }
+                
+                showPlanetFacts(planetName);
+                // Force modal to be visible and on top
+                const modal = document.getElementById('planet-facts-modal');
+                if (modal) {
+                    modal.style.display = 'flex';
+                    modal.style.zIndex = '5000';
+                }
+            }
+            
+            // Check for ISS double-clicks
+            if (issObject) {
+                const issIntersects = raycaster.intersectObject(issObject);
+                if (issIntersects.length > 0) {
+                    console.log('Double-clicked ISS');
+                    // Toggle ISS rotation pause
+                    pausedISS = !pausedISS;
+                    console.log(`ISS rotation ${pausedISS ? 'paused' : 'resumed'}`);
+                    
+                    showISSFacts();
+                    // Force modal to be visible and on top
+                    const modal = document.getElementById('planet-facts-modal');
+                    if (modal) {
+                        modal.style.display = 'flex';
+                        modal.style.zIndex = '5000';
+                    }
+                }
+            }
+        }
+
+        // Helper: Calculate light travel time from Earth to a planet (in seconds)
+        function getLightTravelTime(distStr) {
+            // Extract the number and unit
+            const match = distStr.match(/([\d\.]+)\s*(million|billion)?\s*km/i);
+            if (!match) return null;
+            let value = parseFloat(match[1]);
+            let multiplier = 1;
+            if (match[2] === 'million') multiplier = 1e6;
+            if (match[2] === 'billion') multiplier = 1e9;
+            const distanceKm = value * multiplier;
+            const lightSpeedKmps = 299792.458; // km/s
+            const seconds = distanceKm / lightSpeedKmps;
+            if (seconds < 60) return `${seconds.toFixed(2)} seconds`;
+            if (seconds < 3600) return `${(seconds/60).toFixed(2)} minutes`;
+            if (seconds < 86400) return `${(seconds/3600).toFixed(2)} hours`;
+            return `${(seconds/86400).toFixed(2)} days`;
+        }
+
+        // Show planet facts modal
+        function showPlanetFacts(planetName) {
+            const facts = planetFacts[planetName];
+            if (!facts) return;
+            document.getElementById('facts-title').textContent = planetName;
+            const factsList = document.getElementById('facts-list');
+            factsList.innerHTML = '';
+            factsList.innerHTML += `<li><strong>Radius:</strong> ${facts.radius}</li>`;
+            factsList.innerHTML += `<li><strong>Mass:</strong> ${facts.mass}</li>`;
+            factsList.innerHTML += `<li><strong>Distance from Earth:</strong> ${facts.distFromEarth}</li>`;
+            factsList.innerHTML += `<li><strong>Distance from Sun:</strong> ${facts.distFromSun}</li>`;
+            factsList.innerHTML += `<li><strong>Rings:</strong> ${facts.rings}</li>`;
+            factsList.innerHTML += `<li><strong>Moons:</strong> ${facts.moons}</li>`;
+            // Add light travel time
+            if (planetName === 'Earth') {
+                factsList.innerHTML += `<li><strong>Light travel time from Earth:</strong> You are here!</li>`;
+            } else {
+                const lightTime = getLightTravelTime(facts.distFromEarth);
+                if (lightTime) {
+                    factsList.innerHTML += `<li><strong>Light travel time from Earth:</strong> ${lightTime}</li>`;
+                }
+            }
+            document.getElementById('facts-fun').textContent = facts.fun;
+            
+            // Add Know More button for Sun, Mercury, Venus, Earth, Mars, Jupiter, Neptune, Uranus, and Saturn
+            const modal = document.getElementById('planet-facts-modal');
+            let knowMoreBtn = document.getElementById('know-more-btn');
+            if (knowMoreBtn) knowMoreBtn.remove();
+            if (floatingImageLinks[planetName]) {
+                knowMoreBtn = document.createElement('button');
+                knowMoreBtn.id = 'know-more-btn';
+                knowMoreBtn.textContent = 'Know More';
+                knowMoreBtn.style.display = 'inline-block';
+                knowMoreBtn.style.float = 'right';
+                knowMoreBtn.style.marginTop = '0px';
+                knowMoreBtn.style.marginBottom = '10px';
+                knowMoreBtn.style.marginRight = '0px';
+                knowMoreBtn.style.background = 'linear-gradient(90deg, #00eaff 0%, #4fc3f7 100%)';
+                knowMoreBtn.style.color = '#fff';
+                knowMoreBtn.style.fontWeight = 'bold';
+                knowMoreBtn.style.padding = '7px 18px';
+                knowMoreBtn.style.borderRadius = '10px';
+                knowMoreBtn.style.textDecoration = 'none';
+                knowMoreBtn.style.zIndex = '3001';
+                knowMoreBtn.style.boxShadow = '0 0 12px 2px #00eaff99, 0 0 2px #fff';
+                knowMoreBtn.style.border = 'none';
+                knowMoreBtn.style.outline = 'none';
+                knowMoreBtn.style.fontSize = '1em';
+                knowMoreBtn.style.letterSpacing = '1px';
+                knowMoreBtn.style.transition = 'background 0.2s, box-shadow 0.2s';
+                knowMoreBtn.onmouseover = function() { this.style.background = 'linear-gradient(90deg, #4fc3f7 0%, #00eaff 100%)'; this.style.boxShadow = '0 0 18px 4px #00eaffcc, 0 0 2px #fff'; };
+                knowMoreBtn.onmouseout = function() { this.style.background = 'linear-gradient(90deg, #00eaff 0%, #4fc3f7 100%)'; this.style.boxShadow = '0 0 12px 2px #00eaff99, 0 0 2px #fff'; };
+                knowMoreBtn.onclick = function() {
+                    showFloatingImagePanel(planetName, floatingImageLinks[planetName]);
+                };
+                // Insert after the title
+                const factsContent = modal.querySelector('#planet-facts-content');
+                const titleElem = factsContent.querySelector('#facts-title');
+                if (titleElem && titleElem.nextSibling) {
+                    factsContent.insertBefore(knowMoreBtn, titleElem.nextSibling);
+                } else {
+                    factsContent.appendChild(knowMoreBtn);
+                }
+            }
+            document.getElementById('planet-facts-modal').style.display = 'flex';
+        }
+
+        // Show ISS info (for single click)
+        function showISSInfo() {
+            // Remove any existing ISS image panel
+            const existingPanel = document.getElementById('iss-image-panel');
+            if (existingPanel) existingPanel.remove();
+            
+            // Create a simple info display
+            const infoDiv = document.createElement('div');
+            infoDiv.style.cssText = `
+                position: fixed;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                background: rgba(0, 0, 0, 0.9);
+                color: white;
+                padding: 20px;
+                border-radius: 10px;
+                border: 2px solid #4fc3f7;
+                z-index: 3000;
+                max-width: 350px;
+                text-align: center;
+            `;
+            
+            infoDiv.innerHTML = `
+                <h3 style="color: #4fc3f7; margin-bottom: 10px;">🛰️ International Space Station</h3>
+                <p><strong>Type:</strong> ${issSatellite.type}</p>
+                <p><strong>Altitude:</strong> ${issFacts.altitude}</p>
+                <p><strong>Speed:</strong> ${issFacts.speed}</p>
+                <p style="color: #ffd700; font-style: italic; margin-top: 10px;">${issFacts.fun}</p>
+                <button onclick="this.parentElement.remove(); var p=document.getElementById('iss-image-panel'); if(p) p.remove();" style="margin-top: 10px; padding: 5px 15px; background: #4fc3f7; border: none; border-radius: 5px; color: black; cursor: pointer;">Close</button>
+            `;
+
+            // Add Know More button for ISS (shows floating panel)
+            const knowMoreBtn = document.createElement('button');
+            knowMoreBtn.id = 'know-more-btn-iss';
+            knowMoreBtn.textContent = 'Know More';
+            knowMoreBtn.style.display = 'inline-block';
+            knowMoreBtn.style.float = 'right';
+            knowMoreBtn.style.marginTop = '0px';
+            knowMoreBtn.style.marginBottom = '10px';
+            knowMoreBtn.style.marginRight = '0px';
+            knowMoreBtn.style.background = 'linear-gradient(90deg, #00eaff 0%, #4fc3f7 100%)';
+            knowMoreBtn.style.color = '#fff';
+            knowMoreBtn.style.fontWeight = 'bold';
+            knowMoreBtn.style.padding = '7px 18px';
+            knowMoreBtn.style.borderRadius = '10px';
+            knowMoreBtn.style.textDecoration = 'none';
+            knowMoreBtn.style.zIndex = '3001';
+            knowMoreBtn.style.boxShadow = '0 0 12px 2px #00eaff99, 0 0 2px #fff';
+            knowMoreBtn.style.border = 'none';
+            knowMoreBtn.style.outline = 'none';
+            knowMoreBtn.style.fontSize = '1em';
+            knowMoreBtn.style.letterSpacing = '1px';
+            knowMoreBtn.style.transition = 'background 0.2s, box-shadow 0.2s';
+            knowMoreBtn.onmouseover = function() { this.style.background = 'linear-gradient(90deg, #4fc3f7 0%, #00eaff 100%)'; this.style.boxShadow = '0 0 18px 4px #00eaffcc, 0 0 2px #fff'; };
+            knowMoreBtn.onmouseout = function() { this.style.background = 'linear-gradient(90deg, #00eaff 0%, #4fc3f7 100%)'; this.style.boxShadow = '0 0 12px 2px #00eaff99, 0 0 2px #fff'; };
+            knowMoreBtn.onclick = function() {
+                showFloatingImagePanel('ISS', floatingImageLinks['ISS']);
+            };
+            // Insert after the title
+            const titleElem = infoDiv.querySelector('h3');
+            if (titleElem && titleElem.nextSibling) {
+                infoDiv.insertBefore(knowMoreBtn, titleElem.nextSibling);
+            } else {
+                infoDiv.appendChild(knowMoreBtn);
+            }
+            
+            document.body.appendChild(infoDiv);
+            
+            // Auto-remove after 5 seconds
+            setTimeout(() => {
+                if (infoDiv.parentElement) {
+                    infoDiv.remove();
+                }
+                const panel = document.getElementById('iss-image-panel');
+                if (panel) panel.remove();
+            }, 5000);
+        }
+
+        // Show ISS facts modal (for double click)
+        function showISSFacts() {
+            document.getElementById('facts-title').textContent = '🛰️ International Space Station';
+            const factsList = document.getElementById('facts-list');
+            factsList.innerHTML = '';
+            factsList.innerHTML += `<li><strong>Launch Date:</strong> ${issFacts.launchDate}</li>`;
+            factsList.innerHTML += `<li><strong>Altitude:</strong> ${issFacts.altitude}</li>`;
+            factsList.innerHTML += `<li><strong>Speed:</strong> ${issFacts.speed}</li>`;
+            factsList.innerHTML += `<li><strong>Mass:</strong> ${issFacts.mass}</li>`;
+            factsList.innerHTML += `<li><strong>Crew:</strong> ${issFacts.crew}</li>`;
+            factsList.innerHTML += `<li><strong>Countries:</strong> ${issFacts.countries}</li>`;
+            document.getElementById('facts-fun').textContent = issFacts.fun;
+            document.getElementById('planet-facts-modal').style.display = 'flex';
+        }
+
+        // Show moon info (for single click on Earth's moon)
+        function showMoonInfo() {
+            // Calculate person's weight on the moon
+            let weightOnMoon = 'Enter your mass above first';
+            if (userMass > 0) {
+                const weight = userMass * moonFacts.gravity;
+                weightOnMoon = `${weight.toFixed(2)} kg`;
+            }
+            
+            // Remove any existing moon image panel
+            const existingPanel = document.getElementById('moon-image-panel');
+            if (existingPanel) existingPanel.remove();
+            
+            // Create a simple info display
+            const infoDiv = document.createElement('div');
+            infoDiv.style.cssText = `
+                position: fixed;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                background: rgba(0, 0, 0, 0.9);
+                color: white;
+                padding: 20px;
+                border-radius: 10px;
+                border: 2px solid #cccccc;
+                z-index: 3000;
+                max-width: 350px;
+                text-align: center;
+            `;
+            
+            infoDiv.innerHTML = `
+                <h3 style="color: #cccccc; margin-bottom: 10px;">🌙 Earth's Moon</h3>
+                <p><strong>Radius:</strong> ${moonFacts.radius}</p>
+                <p><strong>Mass:</strong> ${moonFacts.mass}</p>
+                <p><strong>Distance from Earth:</strong> ${moonFacts.distFromEarth}</p>
+                <p><strong>Distance from Sun:</strong> ${moonFacts.distFromSun}</p>
+                <p><strong>Your weight on Moon:</strong> ${weightOnMoon}</p>
+                <p style="color: #ffd700; font-style: italic; margin-top: 10px;">${moonFacts.fun}</p>
+                <button onclick="this.parentElement.remove(); var p=document.getElementById('moon-image-panel'); if(p) p.remove();" style="margin-top: 10px; padding: 5px 15px; background: #cccccc; border: none; border-radius: 5px; color: black; cursor: pointer;">Close</button>
+            `;
+
+            // Add Know More button for Moon (shows floating panel)
+            const knowMoreBtn = document.createElement('button');
+            knowMoreBtn.id = 'know-more-btn-moon';
+            knowMoreBtn.textContent = 'Know More';
+            knowMoreBtn.style.display = 'inline-block';
+            knowMoreBtn.style.float = 'right';
+            knowMoreBtn.style.marginTop = '0px';
+            knowMoreBtn.style.marginBottom = '10px';
+            knowMoreBtn.style.marginRight = '0px';
+            knowMoreBtn.style.background = 'linear-gradient(90deg, #00eaff 0%, #4fc3f7 100%)';
+            knowMoreBtn.style.color = '#fff';
+            knowMoreBtn.style.fontWeight = 'bold';
+            knowMoreBtn.style.padding = '7px 18px';
+            knowMoreBtn.style.borderRadius = '10px';
+            knowMoreBtn.style.textDecoration = 'none';
+            knowMoreBtn.style.zIndex = '3001';
+            knowMoreBtn.style.boxShadow = '0 0 12px 2px #00eaff99, 0 0 2px #fff';
+            knowMoreBtn.style.border = 'none';
+            knowMoreBtn.style.outline = 'none';
+            knowMoreBtn.style.fontSize = '1em';
+            knowMoreBtn.style.letterSpacing = '1px';
+            knowMoreBtn.style.transition = 'background 0.2s, box-shadow 0.2s';
+            knowMoreBtn.onmouseover = function() { this.style.background = 'linear-gradient(90deg, #4fc3f7 0%, #00eaff 100%)'; this.style.boxShadow = '0 0 18px 4px #00eaffcc, 0 0 2px #fff'; };
+            knowMoreBtn.onmouseout = function() { this.style.background = 'linear-gradient(90deg, #00eaff 0%, #4fc3f7 100%)'; this.style.boxShadow = '0 0 12px 2px #00eaff99, 0 0 2px #fff'; };
+            knowMoreBtn.onclick = function() {
+                showFloatingImagePanel('Moon', floatingImageLinks['Moon']);
+            };
+            // Insert after the title
+            const titleElem = infoDiv.querySelector('h3');
+            if (titleElem && titleElem.nextSibling) {
+                infoDiv.insertBefore(knowMoreBtn, titleElem.nextSibling);
+            } else {
+                infoDiv.appendChild(knowMoreBtn);
+            }
+            
+            document.body.appendChild(infoDiv);
+            
+            // Auto-remove after 6 seconds
+            setTimeout(() => {
+                if (infoDiv.parentElement) {
+                    infoDiv.remove();
+                }
+                const panel = document.getElementById('moon-image-panel');
+                if (panel) panel.remove();
+            }, 6000);
+        }
+
+
+
+        // Close modal logic
+        document.addEventListener('DOMContentLoaded', function() {
+            document.getElementById('close-facts').onclick = function() {
+                document.getElementById('planet-facts-modal').style.display = 'none';
+            };
+            document.getElementById('planet-facts-modal').onclick = function(e) {
+                if (e.target === this) {
+                    this.style.display = 'none';
+                }
+            };
+        });
+
+        // Create 2D fallback when 3D fails
+        function create2DFallback() {
+            const canvasContainer = document.getElementById('canvas-container');
+            if (!canvasContainer) return;
+            
+            canvasContainer.innerHTML = `
+                <div style="
+                    display: flex;
+                    flex-direction: column;
+                    align-items: center;
+                    justify-content: center;
+                    height: 100%;
+                    color: white;
+                    text-align: center;
+                    padding: 20px;
+                ">
+                    <h2 style="color: #4fc3f7; margin-bottom: 20px;">🌌 Solar System Weight Calculator</h2>
+                    <p style="margin-bottom: 15px;">3D visualization is not available, but you can still calculate your weight on different planets!</p>
+                    <div style="
+                        display: grid;
+                        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+                        gap: 15px;
+                        max-width: 800px;
+                        width: 100%;
+                    ">
+                        ${Object.keys(planets).map(planetName => `
+                            <div style="
+                                background: rgba(255, 255, 255, 0.1);
+                                border-radius: 10px;
+                                padding: 15px;
+                                border: 1px solid rgba(255, 255, 255, 0.2);
+                            ">
+                                <h3 style="color: #4fc3f7; margin-bottom: 10px;">${planetName}</h3>
+                                <p>Gravity: ${planets[planetName].gravity}x Earth's gravity</p>
+                                <p>Your weight: <span id="weight-${planetName}-2d">Enter mass above</span></p>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+        }
+
+        // Initialize the application
+        document.addEventListener('DOMContentLoaded', function() {
+            // Check if Three.js is loaded
+            if (typeof THREE === 'undefined') {
+                console.error('Three.js library not loaded!');
+                alert('Error: Three.js library failed to load. Please check your internet connection and refresh the page.');
+                return;
+            }
+            
+            // Check WebGL support
+            function isWebGLAvailable() {
+                try {
+                    const canvas = document.createElement('canvas');
+                    return !!(window.WebGLRenderingContext && 
+                        (canvas.getContext('webgl') || canvas.getContext('experimental-webgl')));
+                } catch (e) {
+                    return false;
+                }
+            }
+            
+            if (!isWebGLAvailable()) {
+                console.error('WebGL not supported!');
+                alert('Error: WebGL is not supported or enabled in your browser.\n\nPlease try:\n1. Update your browser to the latest version\n2. Enable hardware acceleration in your browser settings\n3. Update your graphics drivers\n4. Try a different browser (Chrome, Firefox, Edge)');
+                return;
+            }
+            
+            try {
+                init();
+                console.log('3D Solar System initialized successfully!');
+            } catch (error) {
+                console.error('Error initializing 3D Solar System:', error);
+                
+                // Show a helpful message with troubleshooting steps
+                const errorMessage = `
+                    Failed to initialize 3D Solar System: ${error.message}
+                    
+                    Troubleshooting steps:
+                    1. Make sure you're using a modern browser (Chrome, Firefox, Edge)
+                    2. Enable hardware acceleration in your browser settings
+                    3. Update your graphics drivers
+                    4. Try disabling browser extensions
+                    5. Check if your antivirus is blocking WebGL
+                    
+                    You can still use the weight calculator functionality above.
+                `;
+                
+                alert(errorMessage);
+                
+                // Create a simple 2D fallback
+                create2DFallback();
+            }
+        });
+    </script>
+</body>
+</html> 
